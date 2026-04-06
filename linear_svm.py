@@ -29,13 +29,12 @@ print(f"Test set: {len(X_test)} rows")
 
 pipeline = Pipeline([
     ('scalar', StandardScaler()),
-    ('smote', SMOTE(random_state = 0)),
     ('svm', LinearSVC(random_state = 0))
 ])
 
 class_weights = [None, 'balanced']
 
-for w1 in range(10, 21):
+for w1 in range(15,31):
     for w2 in [2, 3, 4, 5, 6]:
         class_weights.append({0: 1, 1: w1, 2: w2})
         
