@@ -4,11 +4,11 @@ from sklearn.model_selection import train_test_split,GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from imblearn.over_sampling import SMOTE
 from imblearn.pipeline import Pipeline
-from sklearn.svm import LinearSVC
 
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
+from sklearn.neural_network import MLPClassifier
 
 file_name = "diabetes_012_health_indicators_BRFSS2015.csv"
 df = pd.read_csv(file_name)
@@ -25,34 +25,26 @@ X_val, X_test, y_val, y_test = train_test_split(
     X_temp, y_temp, test_size=0.50, random_state=42, stratify=y_temp
 )
 
-print("\nDataset split:")
-print(f"Train set: {len(X_train)} rows")
-print(f"Validation set: {len(X_val)} rows")
-print(f"Test set: {len(X_test)} rows")
-
-pipeline = Pipeline([
+mlp_pipeline = Pipeline([
     ('scaler', StandardScaler()),
-    ('svm', LinearSVC(random_state = 0))
+    ('mlp', MLPClassifier(solver = 'adam', random_state = 0, early_stopping = True, n_iter_no_change = 10))
 ])
 
-class_weights = [None, 'balanced']
 
-for w1 in range(15,31):
-    for w2 in [2, 3, 4, 5, 6]:
-        class_weights.append({0: 1, 1: w1, 2: w2})
-        
 param_space = {
-    'svm__C': [0.001, 0.01, 0.1, 1, 10, 100],
-    'svm__max_iter': [100, 1000, 5000],
-    'svm__class_weight': class_weights
+    'mlp__hidden_layer_sizes': [(64,), (64,32), (128,)],
+    'mlp__max_iter': [100, 200],
+    'mlp__learning_rate_init': [0.0001, 0.001],
+    'mlp__batch_size': [32, 64, 128],
+    'mlp__alpha': [0.0001, 0.001]
 }
 
 GS = GridSearchCV(
-    estimator = pipeline,
+    estimator = mlp_pipeline,
     param_grid = param_space,
     scoring = 'f1_macro',
     cv = 5, 
-    n_jobs = -1,
+    n_jobs = 1,
     verbose = 2
 )
 
@@ -62,12 +54,11 @@ print("\nBest Parameters:", GS.best_params_)
 print("Best Cross-Validation Macro F1:", GS.best_score_)
 print("\n Techniques Model Used:", GS.best_estimator_)
 
-# Train the svm model
-best_params = GS.best_params_
-svm_model = GS.best_estimator_
+# Train the mlp model
+mlp_model = GS.best_estimator_
 
 # Test the predictions using training
-y_pred_train = svm_model.predict(X_train)
+y_pred_train = mlp_model.predict(X_train)
 print("\nTraining Confusion Matrix: ", confusion_matrix(y_train, y_pred_train))
 print("Training Classification Report: ", classification_report(y_train, y_pred_train))
 
@@ -75,7 +66,7 @@ print("\nTraining Accuracy:", accuracy_score(y_train, y_pred_train))
 print("Training F1:", f1_score(y_train, y_pred_train, average='macro'))
 
 # Test the predictions using the validation set
-y_pred_val = svm_model.predict(X_val)
+y_pred_val = mlp_model.predict(X_val)
 
 print("\nValidation Confusion Matrix: ", confusion_matrix(y_val, y_pred_val))
 print("Validation Classification Report: ", classification_report(y_val, y_pred_val))
@@ -84,18 +75,7 @@ print("\nValidation Accuracy:", accuracy_score(y_val, y_pred_val))
 print("Validation F1:", f1_score(y_val, y_pred_val, average = 'macro'))
 
 # Predict using the test set
-y_pred_test = svm_model.predict(X_test)
-
-# Confusion matrix
-confusion_m = confusion_matrix(y_test, y_pred_test)
-sns.heatmap(confusion_m, annot = True, cmap = "Blues")
-plt.xlabel("Predicted Label")
-plt.ylabel("True Label")
-plt.title("Linear SVM Confusion Matrix")
-plt.show()
-
-print("\nTest Confusion Matrix: ", confusion_matrix(y_test, y_pred_test))
-print("Test Classification Report: ", classification_report(y_test, y_pred_test))
+y_pred_test = mlp_model.predict(X_test)
 
 print("\nTest Accuracy:", accuracy_score(y_test, y_pred_test))
 print("Test F1:", f1_score(y_test, y_pred_test, average = 'macro'))
