@@ -27,14 +27,10 @@ class TabularTransformer(nn.Module):
     def __init__(self, num_features, d_model, nhead, num_layers, num_classes, dropout):
         super().__init__()
 
-        # Embedding vector
         self.feature_embedding = nn.Linear(1, d_model)
-        # CLS token
         self.cls_token = nn.Parameter(torch.randn(1, 1, d_model))
-        # Learnable positional embeddings
         self.pos_embedding = nn.Parameter(torch.randn(1, num_features + 1, d_model))
 
-        # Transformer encoder
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=d_model,
             nhead=nhead,
@@ -42,10 +38,8 @@ class TabularTransformer(nn.Module):
             batch_first=True
         )
         
-        # Stack multiple encoder layers
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
-        # Final classifier head
         self.classifier = nn.Sequential(
             nn.Linear(d_model, 64),
             nn.ReLU(),
@@ -54,25 +48,18 @@ class TabularTransformer(nn.Module):
         )
 
     def forward(self, x):
-        # Add feature dimension
         x = x.unsqueeze(-1)
 
-        # Convert each feature to embedding
         x = self.feature_embedding(x)
 
-        # Expand CLS token to batch size
         batch_size = x.size(0)
         cls = self.cls_token.expand(batch_size, -1, -1)
 
-        # Prepare CLS token
         x = torch.cat([cls, x], dim=1)
-        # Add positional encoding
         x = x + self.pos_embedding
 
-        # Pass through transformer encoder
         x = self.transformer(x)
 
-        # Use CLS token output for classification
         return self.classifier(x[:, 0])
 
 # Training loop
@@ -152,7 +139,6 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Device:", device)
 
-    # Handle class imbalance using weights
     classes = np.array([0, 1, 2])
 
     weights = compute_class_weight(
@@ -163,7 +149,7 @@ def main():
 
     weights = torch.tensor(weights, dtype=torch.float32).to(device)
 
-    # Hyperparameter tuning - random search
+    # Hyperparameter tuning
     best_f1 = -1
     best_params = None
 
