@@ -37,7 +37,6 @@ print(f"Test size:       {len(X_test)}")
 
 # Feature Scaling (PowerTransformer)
 
-
 pt = PowerTransformer(method="yeo-johnson")
 X_train_scaled = pt.fit_transform(X_train)
 X_val_scaled   = pt.transform(X_val)
@@ -45,12 +44,12 @@ X_test_scaled  = pt.transform(X_test)
 
 # Manual Class Weights via Priors GridSearch
 
-priors = [None]  # None = use true class frequencies from training data
+priors = [None]
 for p1 in [0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40]:
     for p2 in [0.25, 0.30, 0.35, 0.40, 0.45, 0.50]:
         p0 = round(1.0 - p1 - p2, 4)
         if 0.05 <= p0 <= 0.70:
-            priors.append((p0, p1, p2))  # tuples avoid Windows pickling error
+            priors.append((p0, p1, p2))
 
 param_grid = {
     "var_smoothing": [1e-9, 1e-7, 1e-5, 1e-3, 1e-1, 0.5],
@@ -64,7 +63,7 @@ grid = GridSearchCV(
     param_grid=param_grid,
     scoring="f1_macro",
     cv=cv,
-    n_jobs=1,     # n_jobs=-1 causes PicklingError on Windows
+    n_jobs=1, 
     verbose=2
 )
 
