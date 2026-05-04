@@ -63,11 +63,6 @@ X_test_scaled = pt.transform(X_test)
 
 # --- 4. Reshape for LSTM (samples, timesteps, features) ----------------------
 # LSTMs expect 3D input: (batch, sequence_length, input_size)
-# Since this is tabular data (not time-series), we treat each feature
-# as one timestep. Features are grouped by medical category so adjacent
-# timesteps are related — this gives the LSTM meaningful sequential structure
-# to learn from rather than arbitrary ordering.
-#
 # Group order:
 #   [HighBP, HighChol, CholCheck]            -> cardiovascular indicators
 #   [BMI]                                    -> body measurement
@@ -121,19 +116,12 @@ test_dataset = TensorDataset(X_test_t,  y_test_t)
 
 
 # --- 6. Class Weights ---------------------------------------------------------
-# FIX from v1: class 2 (diabetes) was getting 0 predictions because its
-# base weight was only ~2.39 — far too low. The model just ignored it.
-# Fix: boost class 2 by 5x and class 1 by 10x so all classes get predicted.
-#
-#   class 0 base weight: ~0.40  (majority, keep low)
-#   class 1 base weight: ~18.3  x10 = ~183  (prediabetes, very rare)
-#   class 2 base weight: ~2.39  x5  = ~12   (diabetes, was being ignored)
 
 class_counts = np.bincount(y_train_int)
 total = len(y_train_int)
 weights = total / (len(class_counts) * class_counts.astype(float))
-weights[1] *= 10.0   # class 1 (prediabetes) — extremely rare
-weights[2] *= 5.0    # class 2 (diabetes)    — was ignored in v1
+weights[1] *= 10.0
+weights[2] *= 5.0
 
 print(f"\nClass weights: {weights.round(4)}")
 class_weights_tensor = torch.tensor(weights, dtype=torch.float32).to(device)
@@ -167,7 +155,7 @@ class DiabetesLSTM(nn.Module):
             0), self.hidden_size).to(x.device)
 
         out, _ = self.lstm(x, (h0, c0))
-        out = out[:, -1, :]          # take last timestep only
+        out = out[:, -1, :]
 
         out = self.batch_norm(out)
         out = self.dropout(out)
@@ -206,9 +194,6 @@ def evaluate(model, loader):
 
 
 # --- 9. Hyperparameter Search ------------------------------------------------
-# Wider search than v1: larger hidden sizes, more epochs, more patience
-# Prediction distribution printed every 5 epochs so you can monitor
-# whether class 2 is being predicted or still ignored
 
 configs = [
     {"hidden_size": 128, "num_layers": 2,
@@ -354,7 +339,7 @@ print("Test Confusion Matrix:")
 print(confusion_matrix(y_test_true, y_test_pred))
 
 
-# --- 11. Confusion Matrix Plot (styled to match team slides) -----------------
+# --- 11. Confusion Matrix Plot -----------------
 
 def plot_confusion_matrix(y_true, y_pred, title, filename):
     from sklearn.metrics import classification_report
@@ -364,7 +349,6 @@ def plot_confusion_matrix(y_true, y_pred, title, filename):
     cm = confusion_matrix(y_true, y_pred)
     labels = ["No Diabetes", "Prediabetes", "Diabetes"]
 
-    # Extract per-class precision, recall, f1 from report
     report = classification_report(
         y_true, y_pred, output_dict=True, zero_division=0)
     table_data = [
@@ -379,8 +363,7 @@ def plot_confusion_matrix(y_true, y_pred, title, filename):
     fig, axes = plt.subplots(1, 2, figsize=(14, 6),
                              gridspec_kw={"width_ratios": [1.1, 1]})
     fig.patch.set_facecolor("#CCE9FF")
-
-    # Left: heatmap
+    
     ax1 = axes[0]
     ax1.set_facecolor("#CCE9FF")
     sns.heatmap(
@@ -403,7 +386,6 @@ def plot_confusion_matrix(y_true, y_pred, title, filename):
     ax1.tick_params(axis="x", labelsize=10, rotation=15)
     ax1.tick_params(axis="y", labelsize=10, rotation=0)
 
-    # Right: precision/recall table
     ax2 = axes[1]
     ax2.set_facecolor("#CCE9FF")
     ax2.axis("off")
